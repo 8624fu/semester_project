@@ -65,5 +65,43 @@ Extracts:
 
 Provides ready-to-use objects for downstream analyses.
 
-- ToDo: Check Missing Values / Exploratory Analsis. 
+- ToDo: Check Missing Values / Exploratory Analsis.
 
+--------------------------------------------------------------------------------
+
+04_Feature_Selection.R:
+
+Purpose: Restrict the harmonized cohort to PAM50 features
+
+Loads the harmonized dataset (multiomics_luminal_brca.rds) whose beta, rna,
+clinical and y are already aligned to the same 563 patients.
+
+RNA:
+- Maps Ensembl IDs to gene symbols and keeps the 50 PAM50 genes
+- Normalizes raw STAR counts with DESeq2 size factors (estimated on all genes),
+  then log2-transforms the normalized PAM50 counts
+
+Methylation:
+- Loads the Illumina 450K annotation
+- Keeps CpGs whose PAM50 gene is paired with a promoter region
+  (TSS1500, TSS200 or 1stExon), correctly handling the ';'-separated,
+  positionally paired gene/region annotation
+- Includes legacy symbol aliases (CDCA1, KNTC2, ORC6L) so promoter CpGs of
+  NUF2, NDC80 and ORC6 are not missed in the hg19 annotation
+
+Alignment and checks:
+- Reduces RNA and methylation column names to the 12-char patient ID and
+  verifies identical sample order across layers
+- Reports methylation missingness per sample and per CpG (KNN imputation follows)
+
+Output:
+- pam50_features_brca.rds (list: rna, meth, clinical, y)
+
+--------------------------------------------------------------------------------
+
+How to run:
+
+Run the scripts in numerical order (01 -> 02 -> 03 -> 04) from the repository
+root. Script 01 downloads the raw TCGA data (several GB) and only needs to run
+once. The data/ folder is git-ignored, so the .rds files stay local and are not
+pushed to the repository.
