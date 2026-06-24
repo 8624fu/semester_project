@@ -258,6 +258,30 @@ for cross-validated model training or evaluation.
 
 --------------------------------------------------------------------------------
 
+11_LASSO_Cox_mRNA_Baseline.py:
+
+Purpose: Establish the mRNA-only LASSO-Cox survival benchmark (Task 2).
+
+Loads:
+
+* rna_pam50.csv
+* survival_luminal_clean.csv
+* cv_fold_assignments.csv
+
+Fits a LASSO-penalized Cox proportional-hazards model on the log2-normalized PAM50
+mRNA features using the shared 5-fold CV splits. Nested cross-validation is used:
+the outer loop is the shared fold assignment, while an inner loop selects the L1
+penalty. Feature scaling and penalty selection are fit on the training patients of
+each fold only, so there is no leakage. Reports the per-fold concordance index
+(C-index) and the mean +/- sd benchmark that the integrated methylation + mRNA
+model must beat.
+
+Output:
+
+* lasso_cox_cv_results.csv (per-fold penalty, number of genes selected, test C-index)
+
+--------------------------------------------------------------------------------
+
 
 How to run:
 
@@ -271,6 +295,9 @@ After exporting the data, run the Python notebooks/scripts:
 06_Week1_EDA.ipynb / 06_Week1_EDA.py -> 07_Create_CV_Folds.ipynb /
 07_Create_CV_Folds.py -> 08_Methylation_KNN_Imputation_For_Plotting.ipynb /
 08_methylation_knn_imputation_For_Plotting.py
+
+For the mRNA-only survival benchmark, run 11_LASSO_Cox_mRNA_Baseline.py once the
+data export (05) and CV folds (07) are available.
 
 For later cross-validated survival models, use KNN_Imputation_Helper_Function.py so that imputation and scaling are fit separately within each training fold.
 
