@@ -185,6 +185,80 @@ the same patient splits.
 
 --------------------------------------------------------------------------------
 
+08_Methylation_KNN_Imputation_For_Plotting.ipynb /
+08_methylation_knn_imputation_For_Plotting.py:
+
+Purpose: Perform exploratory KNN imputation of PAM50 promoter methylation beta
+values and generate imputation diagnostics for Week 2 analysis.
+
+Loads:
+
+* meth_pam50.csv
+
+KNN imputation:
+
+* identifies and removes CpGs with no observed beta values in any patient because
+  they cannot be imputed from the available data
+* retains all remaining biologically selected promoter CpGs without variance-based
+  feature filtering
+* records methylation missingness per patient and per CpG before imputation
+* evaluates distance-weighted KNN imputation with 3, 5, and 10 neighbors by
+  randomly masking 2% of observed beta values and comparing reconstructed values
+  with their known originals
+* selects 10 neighbors because it produced the lowest reconstruction error
+  (MAE and RMSE)
+* imputes the remaining missing beta values using distance-weighted KNN with
+  k = 10
+* verifies that all missing values are filled and that imputed beta values remain
+  within the expected 0–1 range
+
+Generates and saves:
+
+* methylation missingness tables before imputation
+* KNN neighbor sensitivity comparison table
+* KNN imputation summary table
+* before/after methylation distribution diagnostic
+* observed-versus-imputed beta-value distribution diagnostic
+
+Outputs:
+
+* meth_pam50_knn_imputed.csv
+* all_missing_cpgs_removed_before_knn.csv
+* pam50_promoter_cpg_variation_summary.csv
+* methylation_missingness_per_patient_before_imputation.csv
+* methylation_missingness_per_cpg_before_imputation.csv
+* knn_neighbor_sensitivity.csv
+* knn_imputation_summary.csv
+
+Important:
+The full-cohort imputed methylation matrix is used only for Week 2 exploratory
+analysis, methylation-expression correlations, and visualizations. It must not
+be used directly for cross-validated survival-model evaluation because that
+would allow information from test-fold patients to influence imputation.
+
+--------------------------------------------------------------------------------
+
+KNN_Imputation_Helper_Function.py:
+
+Purpose: Provide fold-safe methylation preprocessing for later survival-model
+cross-validation.
+
+For each cross-validation fold, the helper function:
+
+* subsets methylation data into training and test patients
+* removes CpGs that are completely missing within the training fold
+* fits distance-weighted KNN imputation using training patients only
+* applies the fitted imputer to the corresponding test patients
+* optionally standardizes methylation features using training-fold means and
+  standard deviations only
+
+This helper prevents data leakage during Week 2 and Week 3 survival-model
+evaluation. The full-cohort imputed methylation file should not be used as input
+for cross-validated model training or evaluation.
+
+--------------------------------------------------------------------------------
+
+
 How to run:
 
 Run the scripts in numerical order (01 -> 02 -> 03 -> 04 -> 05) from the repository
@@ -195,7 +269,10 @@ pushed to the repository.
 After exporting the data, run the Python notebooks/scripts:
 
 06_Week1_EDA.ipynb / 06_Week1_EDA.py -> 07_Create_CV_Folds.ipynb /
-07_Create_CV_Folds.py
+07_Create_CV_Folds.py -> 08_Methylation_KNN_Imputation_For_Plotting.ipynb /
+08_methylation_knn_imputation_For_Plotting.py
+
+For later cross-validated survival models, use KNN_Imputation_Helper_Function.py so that imputation and scaling are fit separately within each training fold.
 
 Small reproducibility outputs, including the cleaned survival table and
 cross-validation fold assignments, may be tracked in Git. Large RNA and
