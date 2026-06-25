@@ -385,6 +385,38 @@ Output:
 
 --------------------------------------------------------------------------------
 
+12_LASSO_Cox_Multiomics.py:
+
+Purpose: Integrated LASSO-Cox survival model using both omics layers (mRNA
+expression + promoter methylation), to test whether methylation improves on the
+mRNA-only benchmark.
+
+Loads:
+
+* rna_pam50.csv
+* meth_pam50.csv (raw beta values, with missing values)
+* survival_luminal_clean.csv
+* cv_fold_assignments.csv
+* KNN_Imputation_Helper_Function.py
+
+Per cross-validation fold, methylation is KNN-imputed fold-safe (helper, fit on
+training patients only), converted from beta to M-values (log2(beta/(1-beta)),
+which are more homoscedastic and better suited to linear models) and standardized,
+then concatenated with per-fold standardized expression. The L1-penalized Cox model
+is fit with scikit-survival's Coxnet, which is suited to the high-dimensional
+predictor set (~577 features); the penalty is chosen by an inner cross-validation
+and the model is evaluated on the held-out outer fold with the concordance index.
+Uses the same shared 5-fold splits as the mRNA-only baseline so the C-indices are
+comparable.
+
+Requires scikit-survival (pip install scikit-survival).
+
+Output:
+
+* lasso_cox_multiomics_cv_results.csv (per-fold alpha, number of features selected,
+  test C-index)
+
+--------------------------------------------------------------------------------
 
 How to run:
 
