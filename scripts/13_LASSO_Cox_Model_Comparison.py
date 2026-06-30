@@ -7,8 +7,8 @@ from scipy.stats import wilcoxon
 
 # load data
 
-mRNA = pd.read_csv("results/tables/lasso_cox_cv_results.csv")
-multi = pd.read_csv("results/tables/lasso_cox_multiomics_cv_results.csv")
+mRNA = pd.read_csv("../results/tables/lasso_cox_cv_results.csv")
+multi = pd.read_csv("../results/tables/lasso_cox_multiomics_cv_results.csv")
 
 mRNA["model"] = "mRNA-only"
 multi["model"] = "Multi-omics"
