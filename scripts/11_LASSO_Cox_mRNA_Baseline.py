@@ -22,7 +22,8 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from sklearn.model_selection import KFold
+import matplotlib.pyplot as plt
+from sklearn.model_selection import StratifiedKFold
 from sklearn.preprocessing import StandardScaler
 from sksurv.util import Surv
 from sksurv.linear_model import CoxnetSurvivalAnalysis
@@ -46,7 +47,7 @@ Path("../results/tables").mkdir(parents=True, exist_ok=True)
 # - patient alignment with `loc`
 # - `fold_id` outer CV fold per patient (same splits as all other models)
 
-# In[5]:
+# In[2]:
 
 
 rna = pd.read_csv("../data/processed/rna_pam50.csv").set_index("patient")
@@ -69,7 +70,7 @@ print(f"Patients: {len(patients)} | genes: {rna.shape[1]} | folds: {sorted(fold_
 # is collected and paired. 
 # 
 
-# In[ ]:
+# In[3]:
 
 
 def survival_y(ids):
@@ -88,7 +89,7 @@ def survival_y(ids):
 # - scaling is then applied (`.transform`) to train and test samples
 # - scaling matters because LASSO's penalty is scale-sensitive (features must be comparable)
 
-# In[8]:
+# In[4]:
 
 
 def build_features(train_ids, test_ids):
@@ -108,23 +109,50 @@ def build_features(train_ids, test_ids):
 # - `try/except` Coxnet can fail to converge at very small `alpha` (almost no penalty) --> skips failing convergence
 # - return the `alpha` with the best mean inner C-index
 
-# In[9]:
+# In[ ]:
 
+
+# selected alpha using the 1 standard error rule 
 
 def select_alpha(X, y, alphas):
-    inner = KFold(n_splits=5, shuffle=True, random_state=42)
-    score_sum = np.zeros(len(alphas))
-    for i_tr, i_va in inner.split(X):
-        model = CoxnetSurvivalAnalysis(l1_ratio=1.0, alphas=alphas, max_iter=100000)
+    inner = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+    scores = np.full((inner.get_n_splits(), len(alphas)), np.nan)
+
+    for fold_idx, (i_tr, i_va) in enumerate(inner.split(X, y["event"])):
+        model = CoxnetSurvivalAnalysis(
+            l1_ratio=1.0,
+            alphas=alphas,
+            max_iter=100000
+        )
+
         try:
             model.fit(X[i_tr], y[i_tr])
-        except (ArithmeticError, ValueError):  # Coxnet may fail to converge at small alphas
+
+            for j, alpha in enumerate(alphas):
+                risk = model.predict(X[i_va], alpha=alpha)
+                scores[fold_idx, j] = concordance_index_censored(
+                    y[i_va]["event"],
+                    y[i_va]["time"],
+                    risk
+                )[0]
+
+        except (ArithmeticError, ValueError) as e:
+            print(f"Warning: inner fold {fold_idx} failed ({e})")
             continue
-        for j, a in enumerate(alphas):
-            risk = model.predict(X[i_va], alpha=a)
-            score_sum[j] += concordance_index_censored(
-                y[i_va]["event"], y[i_va]["time"], risk)[0]
-    return alphas[int(np.argmax(score_sum))]
+
+    mean_scores = np.nanmean(scores, axis=0)
+    std_scores = np.nanstd(scores, axis=0, ddof=1)
+    n_scores = np.sum(~np.isnan(scores), axis=0)
+    se_scores = std_scores / np.sqrt(n_scores)
+
+    best_idx = np.nanargmax(mean_scores)
+    threshold = mean_scores[best_idx] - se_scores[best_idx]
+
+    candidate_idx = np.where(mean_scores >= threshold)[0]
+
+    chosen_idx = candidate_idx[0]
+
+    return alphas[chosen_idx]
 
 
 # ## Nested CV 
@@ -146,32 +174,97 @@ def select_alpha(X, y, alphas):
 # - `n_sel` count how many genes are kept after LASSO regularization
 # - `lasso_cox_cv_results.csv` results table with one row per fold (best alpha, number selected genes, C-index)
 
-# In[10]:
+# In[ ]:
+
+
+# switch alpha if too small and fails to converge
+def fit_final_model_with_fallback(X_tr, y_tr, selected_alpha, alphas):
+    sorted_alphas = np.sort(alphas)
+
+    candidate_alphas = sorted_alphas[sorted_alphas >= selected_alpha]
+
+    for alpha in candidate_alphas:
+        try:
+            model = CoxnetSurvivalAnalysis(
+                l1_ratio=1.0,
+                alphas=[alpha],
+                max_iter=100000
+            )
+            model.fit(X_tr, y_tr)
+            return model, alpha
+        except ArithmeticError:
+            print(f"Alpha {alpha:.4g} failed; trying larger alpha...")
+
+    raise RuntimeError("No alpha worked. Try increasing alpha_min_ratio.")
+
+
+# In[ ]:
 
 
 rows = []
+path_models = {}
 for f in sorted(fold_id.unique()):
     train_ids = fold_id.index[fold_id != f]
     test_ids = fold_id.index[fold_id == f]
     X_tr, X_te = build_features(train_ids, test_ids)
     y_tr, y_te = survival_y(train_ids), survival_y(test_ids)
 
-    alphas = CoxnetSurvivalAnalysis(l1_ratio=1.0, n_alphas=50,
+    alphas = CoxnetSurvivalAnalysis(l1_ratio=1.0, n_alphas=100,
                                     alpha_min_ratio=0.01, max_iter=100000).fit(X_tr, y_tr).alphas_
     best_alpha = select_alpha(X_tr, y_tr, alphas)
+    
+    final, used_alpha = fit_final_model_with_fallback(X_tr, y_tr, best_alpha, alphas)
+    
+    path_model = CoxnetSurvivalAnalysis(l1_ratio=1.0, n_alphas=100, alpha_min_ratio=0.01, max_iter=100000)
+    path_model.fit(X_tr, y_tr)
+    path_models[f] = path_model
 
-    final = CoxnetSurvivalAnalysis(l1_ratio=1.0, alphas=[best_alpha],
-                                   max_iter=100000).fit(X_tr, y_tr)
+    train_risk = final.predict(X_tr)
     risk = final.predict(X_te)
+    train_ci = concordance_index_censored(y_tr["event"], y_tr["time"], train_risk)[0]
     ci = concordance_index_censored(y_te["event"], y_te["time"], risk)[0]
     n_sel = int((final.coef_.ravel() != 0).sum())
-    rows.append({"fold": f, "alpha": best_alpha, "n_features_total": X_tr.shape[1],
-                 "n_features_selected": n_sel, "test_c_index": ci, "n_test": len(test_ids)})
-    print(f"Fold {f}: C-index={ci:.3f} | alpha={best_alpha:.4g} | selected={n_sel}")
+    rows.append({"fold": f, "used alpha": used_alpha, "n_features_total": X_tr.shape[1],
+                 "n_features_selected": n_sel, "train_c_index": train_ci, "test_c_index": ci, "n_test": len(test_ids)})
+    print(f"Fold {f}: Train C-index={train_ci:.3f} | Test C-index={ci:.3f} | alpha={used_alpha:.4g} | features={X_tr.shape[1]} | selected={n_sel}")
 
 cv = pd.DataFrame(rows)
 cv.to_csv("../results/tables/lasso_cox_cv_results.csv", index=False)
 
+best_fold = cv.loc[cv["test_c_index"].idxmax(), "fold"]
+path_model = path_models[best_fold]
+
 mean_ci, sd_ci = cv["test_c_index"].mean(), cv["test_c_index"].std()
 print(f"\nBenchmark mRNA-only LASSO-Cox C-index: {mean_ci:.3f} +/- {sd_ci:.3f} (5-fold CV)")
+
+
+# In[13]:
+
+
+# Plotting the coefficient paths for the best fold
+best_alpha_for_plot = cv.loc[cv["fold"] == best_fold, "used alpha"].iloc[0]
+
+plt.figure(figsize=(10, 6))
+
+importance = np.max(np.abs(path_model.coef_), axis=1)
+top_genes = np.argsort(importance)[-10:]
+
+for i in top_genes:
+    plt.plot(np.log10(path_model.alphas_), path_model.coef_[i], linewidth=1, label=rna.columns[i])
+
+plt.axvline(np.log10(best_alpha_for_plot), color='red', linestyle='--', label=f"Selected alpha = {best_alpha_for_plot:.4g}")
+
+plt.xlabel("log10(alpha)")
+plt.ylabel("Coefficient")
+plt.title(f"LASSO-Cox Coefficient Paths (mRNA, Best Fold = {best_fold})")
+plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+plt.tight_layout()
+plt.savefig("../results/figures/lasso_cox_mRNA_coefficient_paths.png", dpi=300)
+plt.show()
+
+
+# In[ ]:
+
+
+
 
