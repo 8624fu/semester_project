@@ -1,0 +1,3 @@
+feature_type,n_features,total_importance,mean_importance,pct_total
+Methylation,265,1.801,0.0068,83.0
+RNA,50,0.3687,0.0074,17.0
