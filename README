@@ -369,19 +369,22 @@ Loads:
 * cv_fold_assignments.csv
 
 Fits a LASSO-penalized Cox proportional-hazards model on the log2-normalized PAM50
-mRNA features using the shared 5-fold CV splits. The model uses scikit-survival's
-Coxnet (the same engine and nested-CV scheme as the multi-omics model 12, so the two
-LASSO C-indices are directly comparable). Nested cross-validation is used: the outer
-loop is the shared fold assignment, while an inner 5-fold loop selects the L1 penalty.
-Feature scaling and penalty selection are fit on the training patients of each fold
-only, so there is no leakage. Reports the per-fold concordance index (C-index) and
-the mean +/- sd benchmark that the integrated methylation + mRNA model must beat.
+mRNA features using the shared 5-fold cross-validation splits. The model uses
+scikit-survival's CoxnetSurvivalAnalysis (the same engine and nested
+cross-validation strategy as the multi-omics model in stage 12, so the two
+LASSO C-indices are directly comparable). Nested cross-validation is used:
+the outer loop evaluates the model on the shared fold assignments, while an
+inner 5-fold cross-validation selects the optimal L1 penalty (alpha).
+Feature scaling and penalty selection are performed using the training
+patients of each fold only, preventing data leakage. Reports the per-fold
+concordance index (C-index), the selected alpha, and the number of genes
+retained by the LASSO model.
 
 Requires scikit-survival (pip install scikit-survival).
 
 Output:
 
-* lasso_cox_cv_results.csv (per-fold alpha, number of genes selected, test C-index)
+* lasso_cox_cv_results.csv (per-fold alpha, total genes, selected genes, test C-index)
 
 --------------------------------------------------------------------------------
 
@@ -399,22 +402,21 @@ Loads:
 * cv_fold_assignments.csv
 * KNN_Imputation_Helper_Function.py
 
-Per cross-validation fold, methylation is KNN-imputed fold-safe (helper, fit on
-training patients only), converted from beta to M-values (log2(beta/(1-beta)),
-which are more homoscedastic and better suited to linear models) and standardized,
-then concatenated with per-fold standardized expression. The L1-penalized Cox model
-is fit with scikit-survival's Coxnet, which is suited to the high-dimensional
-predictor set (~577 features); the penalty is chosen by an inner cross-validation
-and the model is evaluated on the held-out outer fold with the concordance index.
-Uses the same shared 5-fold splits as the mRNA-only baseline so the C-indices are
-comparable.
+For each cross-validation fold, methylation is imputed using fold-safe KNN
+imputation (fit on the training patients only), converted from beta values to
+M-values (log2(beta/(1-beta))), standardized, and concatenated with
+standardized mRNA expression features. The LASSO-penalized Cox model is fit
+using scikit-survival's CoxnetSurvivalAnalysis. Nested cross-validation is
+used: the outer loop evaluates model performance on the held-out fold, while
+an inner 5-fold cross-validation selects the optimal L1 penalty (alpha).
+The same shared fold assignments are used as the mRNA-only baseline so the
+resulting C-indices are directly comparable.
 
 Requires scikit-survival (pip install scikit-survival).
 
 Output:
 
-* lasso_cox_multiomics_cv_results.csv (per-fold alpha, number of features selected,
-  test C-index)
+* lasso_cox_multiomics_cv_results.csv (per-fold alpha, total features, selected features, test C-index)
 
 --------------------------------------------------------------------------------
 
@@ -437,27 +439,226 @@ Output:
 
 --------------------------------------------------------------------------------
 
+NN_Cox_mRNA_Expression.py:
+
+Purpose: Helper module implementing the neural-network Cox proportional hazards model for mRNA 
+expression only.
+
+Provides reusable functions for:
+
+- constructing the mRNA-only neural network architecture
+- computing the Cox partial likelihood loss
+- training the model with early stopping
+- evaluating the concordance index (C-index)
+- predicting patient-level relative risk scores for ranking survival risk
+
+This script is a helper module and is not intended to be run directly. It is imported by the tuning 
+and final evaluation scripts.
+
+--------------------------------------------------------------------------------
+
+NN_Cox_Integrated.py:
+
+Purpose: Helper module implementing the integrated neural-network Cox proportional hazards model using 
+both mRNA expression and promoter methylation.
+
+Provides reusable functions for:
+
+- constructing the integrated neural network architecture
+- combining expression and methylation features
+- computing the Cox partial likelihood loss
+- training with early stopping
+- evaluating the concordance index (C-index)
+- predicting patient-level relative risk scores for ranking survival risk
+
+This script is a helper module and is not intended to be run directly. It is imported by the tuning and 
+final evaluation scripts.
+
+--------------------------------------------------------------------------------
+
+14_tune_mRNA.py:
+
+Purpose: Tune the hyperparameters of the mRNA-only neural-network Cox survival model.
+
+Loads:
+
+* NN_Cox_mRNA_Expression.py
+
+Uses the shared cross-validation workflow from `NN_Cox_mRNA_Expression.py` to evaluate a grid of 
+conservative neural-network hyperparameter combinations.
+
+Tunes:
+
+* learning rate
+* weight decay
+* hidden layer architecture
+* dropout rate
+
+Uses fixed values for:
+
+* batch normalization: False
+* batch size: 32
+* early stopping patience: 10
+
+For each configuration, the script records train, validation, and test C-index across the cross-validation 
+folds. The final configuration is selected using a conservative 1-standard-deviation rule: among models 
+within 1 SD of the best mean validation C-index, the script chooses the simplest model with the lowest 
+overfitting gap.
+
+Outputs:
+
+* nn_mRNA_Only_conservative_joint_tuning_summary.csv
+* nn_mRNA_Only_conservative_joint_tuning_folds.csv
+* selected best hyperparameter configuration printed to the console
+
+--------------------------------------------------------------------------------
+
+15_tune_integrated_nn.py:
+
+Purpose: Tune the hyperparameters of the integrated neural-network Cox survival model using both 
+mRNA expression and promoter methylation.
+
+Loads:
+
+* NN_Cox_Integrated.py
+
+Uses the shared cross-validation workflow from `NN_Cox_Integrated.py` to evaluate a grid of conservative 
+multi-omics neural-network hyperparameter combinations.
+
+Tunes:
+
+* learning rate
+* weight decay
+* hidden layer architecture
+* dropout rate
+
+Uses fixed values for:
+
+* batch normalization: False
+* batch size: 32
+* early stopping patience: 10
+* methylation variance threshold: 0.0005
+
+For each configuration, the script records train, validation, and test C-index across the cross-validation 
+folds. The final configuration is selected using a conservative 1-standard-deviation rule: among models 
+within 1 SD of the best mean validation C-index, the script chooses the simplest model with the lowest 
+overfitting gap.
+
+Outputs:
+
+* nn_integrated_conservative_joint_tuning_summary.csv
+* nn_integrated_conservative_joint_tuning_folds.csv
+* selected best hyperparameter configuration printed to the console
+
+--------------------------------------------------------------------------------
+
+16_Run_best_Model_mRNA_Only.py:
+
+Purpose: Train and evaluate the final mRNA-only neural-network Cox survival model using the best 
+hyperparameter configuration identified during tuning.
+
+Loads:
+
+* NN_Cox_mRNA_Expression.py
+
+Uses the selected hyperparameter configuration to train the mRNA-only neural-network survival model on the 
+shared cross-validation folds.
+
+The model uses:
+
+* learning rate = 0.001
+* weight decay = 0.001
+* hidden layer architecture = [16]
+* dropout rate = 0.6
+* batch normalization = False
+* batch size = 32
+* early stopping patience = 10
+
+Reports:
+
+* train C-index
+* validation C-index
+* test C-index
+* number of training epochs for each fold
+
+Outputs:
+
+* nn_mRNA_only_best_model_folds.csv
+* nn_mRNA_only_best_model_summary.csv
+
+--------------------------------------------------------------------------------
+
+17_Run_Best_Model_Integrated.py:
+
+Purpose: Train and evaluate the final integrated neural-network Cox survival model using the best 
+hyperparameter configuration identified during tuning.
+
+Loads:
+
+* NN_Cox_Integrated.py
+
+Uses the selected hyperparameter configuration to train the integrated neural-network survival model on the 
+shared cross-validation folds.
+
+The model uses:
+
+* learning rate = 0.001
+* weight decay = 0.03
+* hidden layer architecture = [8]
+* dropout rate = 0.5
+* batch normalization = False
+* methylation variance threshold = 0.0005
+* batch size = 32
+* early stopping patience = 10
+
+Reports:
+
+* train C-index
+* validation C-index
+* test C-index
+* number of training epochs for each fold
+
+Outputs:
+
+* nn_integrated_best_model_folds.csv
+* nn_integrated_best_model_summary.csv
+
+--------------------------------------------------------------------------------
+
 How to run:
 
-Run the scripts in numerical order (01 -> 02 -> 03 -> 04 -> 05 -> 05b) from the
+Run the R scripts in numerical order (01 -> 02 -> 03 -> 04 -> 05 -> 05b) from the
 repository root. Script 01 downloads the raw TCGA data (several GB) and only needs
-to run once. Script 05b exports the CpG -> gene map used by the correlation
-analysis. The data/ folder is git-ignored, so the .rds files stay local and are
+to be run once. Script 05b exports the CpG -> gene map used by the correlation
+analysis. The data/ folder is git-ignored, so the .RDS files remain local and are
 not pushed to the repository.
 
-After exporting the data, run the Python notebooks/scripts:
+Next, run the exploratory Python scripts:
 
-06_Week1_EDA.ipynb / 06_Week1_EDA.py -> 07_Create_CV_Folds.ipynb /
-07_Create_CV_Folds.py -> 08_Methylation_KNN_Imputation_For_Plotting.ipynb /
-08_methylation_knn_imputation_For_Plotting.py ->
-09_CpG_Expression_Correlation.py -> 09b_Subtype_Correlation_Comparison.py ->
+06_week1_eda.py ->
+07_create_cv_folds.py ->
+08_Methylation_KNN_Imputation_For_Plotting.py ->
+09_CpG_Expression_Correlation.py ->
+09b_Subtype_Correlation_Comparison.py ->
 10_Survival_Curves.py
 
-For the mRNA-only survival benchmark, run 11_LASSO_Cox_mRNA_Baseline.py once the
-data export (05) and CV folds (07) are available.
+LASSO-Cox survival models:
 
-For later cross-validated survival models, use KNN_Imputation_Helper_Function.py so that imputation and scaling are fit separately within each training fold.
+11_LASSO_Cox_mRNA_Baseline.py ->
+12_LASSO_Cox_Multiomics.py
 
-Small reproducibility outputs, including the cleaned survival table and
-cross-validation fold assignments, may be tracked in Git. Large RNA and
-methylation CSV files remain git-ignored.
+Neural-network Cox survival models:
+
+14_tune_mRNA.py ->
+15_tune_integrated_nn.py ->
+16_Run_best_Model_mRNA_Only.py ->
+17_Run_Best_Model_Integrated.py
+
+Helper modules:
+
+* KNN_Imputation_Helper_Function.py
+* NN_Cox_mRNA_Expression.py
+* NN_Cox_Integrated.py
+
+These helper modules are imported by the survival-model scripts and should not be
+run directly.
