@@ -1,0 +1,5 @@
+model,logrank_p,n_high,n_low
+mRNA-only LASSO,0.1632,278,278
+Multi-omics LASSO,0.597,278,278
+mRNA-only NN,0.0017,278,278
+Multi-omics NN,0.1368,278,278

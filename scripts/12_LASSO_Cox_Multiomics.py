@@ -19,7 +19,7 @@
 # 
 # `fit_transform_train_test_methylation` from the KNN helper module --> fold-safe methylation imputation (same function as in the plotting stage 08).
 
-# In[1]:
+# In[32]:
 
 
 import sys
@@ -29,7 +29,8 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from sklearn.model_selection import KFold
+import matplotlib.pyplot as plt
+from sklearn.model_selection import StratifiedKFold
 from sklearn.preprocessing import StandardScaler
 from sksurv.util import Surv
 from sksurv.linear_model import CoxnetSurvivalAnalysis
@@ -55,14 +56,16 @@ Path("../results/tables").mkdir(parents=True, exist_ok=True)
 # - `intersection` keep patients present in all four tables
 # - patient alignment with `loc`; `fold_id` outer CV fold per patient (same splits as in stage 11)
 
-# In[2]:
+# In[33]:
 
 
 rna = pd.read_csv("../data/processed/rna_pam50.csv").set_index("patient")
 meth = pd.read_csv("../data/processed/meth_pam50.csv").set_index("patient")
 surv = pd.read_csv("../data/processed/survival_luminal_clean.csv").set_index("patient")
 folds = pd.read_csv("../data/processed/cv_fold_assignments.csv").set_index("patient")
+anno = pd.read_csv("../data/processed/cpg_gene_map.csv")
 
+cpg_to_gene = dict(zip(anno["cpg"], anno["gene"]))
 surv = surv[surv["time"].notna() & (surv["time"] > 0)]
 patients = (rna.index.intersection(meth.index)
             .intersection(surv.index).intersection(folds.index))
@@ -76,7 +79,7 @@ print(f"Patients: {len(patients)} | genes: {rna.shape[1]} | raw CpGs: {meth.shap
 # 
 # `survival_y(ids)` pairs each patient's `event` (False = no observed death, True = dead) and `time` (days from diagnosis to death, or to last contact) into the survival target. Same as in 11.
 
-# In[3]:
+# In[34]:
 
 
 def survival_y(ids):
@@ -91,7 +94,7 @@ def survival_y(ids):
 # - beta is heteroscedastic (variance squeezed near 0 and 1); M-values are more *homoscedastic* --> better for linear models like Cox
 # - `B.clip(1e-4, 1 - 1e-4)` keeps beta away from exactly 0/1 so M stays finite (avoids log(0) / division by 0)
 
-# In[4]:
+# In[35]:
 
 
 def beta_to_m(B):
@@ -110,7 +113,7 @@ def beta_to_m(B):
 # - `StandardScaler` standardize methylation *and* expression, each fit on train only
 # - `pd.concat([Xr, Mm], axis=1)` concatenate expression + methylation into one feature vector per patient
 
-# In[ ]:
+# In[36]:
 
 
 def build_features(train_ids, test_ids):
@@ -125,7 +128,12 @@ def build_features(train_ids, test_ids):
     Xr_te = pd.DataFrame(r_scaler.transform(rna.loc[test_ids]), index=test_ids, columns=rna.columns)
     X_tr = pd.concat([Xr_tr, Mm_tr], axis=1).to_numpy()
     X_te = pd.concat([Xr_te, Mm_te], axis=1).to_numpy()
-    return X_tr, X_te
+    rna_names = [f"RNA: {g}" for g in rna.columns]
+    meth_names = [f"METH: {cpg_to_gene.get(cpg, 'Unknown')} ({cpg})" 
+                  for cpg in Mm_tr.columns]
+    feature_names = rna_names + meth_names
+    
+    return X_tr, X_te, feature_names
 
 
 # ## Function for alpha tuning
@@ -140,20 +148,46 @@ def build_features(train_ids, test_ids):
 # In[ ]:
 
 
+# selcting alpha using the 1 standard error rule
 def select_alpha(X, y, alphas):
-    inner = KFold(n_splits=5, shuffle=True, random_state=42)
-    score_sum = np.zeros(len(alphas))
-    for i_tr, i_va in inner.split(X):
-        model = CoxnetSurvivalAnalysis(l1_ratio=1.0, alphas=alphas, max_iter=100000)
+    inner = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+    scores = np.full((inner.get_n_splits(), len(alphas)), np.nan)
+
+    for fold_idx, (i_tr, i_va) in enumerate(inner.split(X, y["event"])):
+        model = CoxnetSurvivalAnalysis(
+            l1_ratio=1.0,
+            alphas=alphas,
+            max_iter=100000
+        )
+
         try:
             model.fit(X[i_tr], y[i_tr])
-        except (ArithmeticError, ValueError): 
+
+            for j, alpha in enumerate(alphas):
+                risk = model.predict(X[i_va], alpha=alpha)
+                scores[fold_idx, j] = concordance_index_censored(
+                    y[i_va]["event"],
+                    y[i_va]["time"],
+                    risk
+                )[0]
+
+        except (ArithmeticError, ValueError) as e:
+            print(f"Warning: inner fold {fold_idx} failed ({e})")
             continue
-        for j, a in enumerate(alphas):
-            risk = model.predict(X[i_va], alpha=a)
-            score_sum[j] += concordance_index_censored(
-                y[i_va]["event"], y[i_va]["time"], risk)[0]
-    return alphas[int(np.argmax(score_sum))]
+
+    mean_scores = np.nanmean(scores, axis=0)
+    std_scores = np.nanstd(scores, axis=0, ddof=1)
+    n_scores = np.sum(~np.isnan(scores), axis=0)
+    se_scores = std_scores / np.sqrt(n_scores)
+
+    best_idx = np.nanargmax(mean_scores)
+    threshold = mean_scores[best_idx] - se_scores[best_idx]
+
+    candidate_idx = np.where(mean_scores >= threshold)[0]
+
+    chosen_idx = candidate_idx[0]
+
+    return alphas[chosen_idx]
 
 
 # ## Nested CV & result
@@ -170,33 +204,108 @@ def select_alpha(X, y, alphas):
 # In[ ]:
 
 
+# switch alpha if too small and fails to converge
+def fit_final_model_with_fallback(X_tr, y_tr, selected_alpha, alphas):
+    sorted_alphas = np.sort(alphas)
+
+    candidate_alphas = sorted_alphas[sorted_alphas >= selected_alpha]
+
+    for alpha in candidate_alphas:
+        try:
+            model = CoxnetSurvivalAnalysis(
+                l1_ratio=1.0,
+                alphas=[alpha],
+                max_iter=100000
+            )
+            model.fit(X_tr, y_tr)
+            return model, alpha
+        except ArithmeticError:
+            print(f"Alpha {alpha:.4g} failed; trying larger alpha...")
+
+    raise RuntimeError("No alpha worked. Try increasing alpha_min_ratio.")
+
+
+# In[ ]:
+
+
 rows = []
+path_models = {}
+feature_names_by_fold = {}
+
 for f in sorted(fold_id.unique()):
     train_ids = fold_id.index[fold_id != f]
     test_ids = fold_id.index[fold_id == f]
-    X_tr, X_te = build_features(train_ids, test_ids)
+    X_tr, X_te, feature_names = build_features(train_ids, test_ids)
+    feature_names_by_fold[f] = feature_names
     y_tr, y_te = survival_y(train_ids), survival_y(test_ids)
 
-    alphas = CoxnetSurvivalAnalysis(l1_ratio=1.0, n_alphas=50,
-                                    alpha_min_ratio=0.01, max_iter=100000).fit(X_tr, y_tr).alphas_
+    alphas = CoxnetSurvivalAnalysis(l1_ratio=1.0, n_alphas=100,
+                                    alpha_min_ratio=0.05, max_iter=100000).fit(X_tr, y_tr).alphas_
     best_alpha = select_alpha(X_tr, y_tr, alphas)
 
-    final = CoxnetSurvivalAnalysis(l1_ratio=1.0, alphas=[best_alpha],
-                                   max_iter=100000).fit(X_tr, y_tr)
+    final, used_alpha = fit_final_model_with_fallback(X_tr, y_tr, best_alpha, alphas)
+    
+    path_model = CoxnetSurvivalAnalysis(l1_ratio=1.0, n_alphas=100, alpha_min_ratio=0.05, max_iter=100000)
+    path_model.fit(X_tr, y_tr)
+    path_models[f] = path_model
+
+    train_risk = final.predict(X_tr)
     risk = final.predict(X_te)
+    train_ci = concordance_index_censored(y_tr["event"], y_tr["time"], train_risk)[0]
     ci = concordance_index_censored(y_te["event"], y_te["time"], risk)[0]
     n_sel = int((final.coef_.ravel() != 0).sum())
-    rows.append({"fold": f, "alpha": best_alpha, "n_features_total": X_tr.shape[1],
-                 "n_features_selected": n_sel, "test_c_index": ci, "n_test": len(test_ids)})
-    print(f"Fold {f}: C-index={ci:.3f} | alpha={best_alpha:.4g} | "
+    rows.append({"fold": f, "used alpha": used_alpha, "n_features_total": X_tr.shape[1],
+                 "n_features_selected": n_sel, "train_c_index": train_ci, "test_c_index": ci, "n_test": len(test_ids)})
+    print(f"Fold {f}: Train C-index={train_ci:.3f} | Test C-index={ci:.3f} | alpha={used_alpha:.4g} | "
           f"features={X_tr.shape[1]} | selected={n_sel}")
+    
+    #LZ added 07_05:
+    risk_rows = [{"patient": pid, "fold": f, "risk_score": float(r)}
+             for pid, r in zip(test_ids, risk)]
+    risk_path = Path("../results/tables/lasso_cox_multiomics_risk_scores.csv")
+    pd.DataFrame(risk_rows).to_csv(risk_path, mode="a", header=not risk_path.exists(), index=False)
 
 cv = pd.DataFrame(rows)
 cv.to_csv("../results/tables/lasso_cox_multiomics_cv_results.csv", index=False)
+
+best_fold = cv.loc[cv["test_c_index"].idxmax(), "fold"]
+path_model = path_models[best_fold]
 
 mean_ci, sd_ci = cv["test_c_index"].mean(), cv["test_c_index"].std()
 print(f"\nMulti-omics LASSO-Cox C-index: {mean_ci:.3f} +/- {sd_ci:.3f} (5-fold CV)")
 
 
-# #### Result: 
-# mean C-index = 0.565 +/- 0.06 — slightly higher and more stable than the mRNA-only baseline (0.55 +/- 0.09): methylation adds modest but real information.
+# In[41]:
+
+
+# Plotting the coefficient paths for the best fold
+best_fold = cv.loc[cv["test_c_index"].idxmax(), "fold"]
+path_model = path_models[best_fold]
+feature_names = feature_names_by_fold[best_fold]
+
+best_alpha_for_plot = cv.loc[cv["fold"] == best_fold, "used alpha"].iloc[0]
+
+plt.figure(figsize=(10, 6))
+
+importance = np.max(np.abs(path_model.coef_), axis=1)
+top_features = np.argsort(importance)[-10:]
+
+for i in top_features:
+    plt.plot(np.log10(path_model.alphas_), path_model.coef_[i], linewidth=1, label=feature_names[i])
+
+plt.axvline(np.log10(best_alpha_for_plot), color='red', linestyle='--', label=f"Selected alpha = {best_alpha_for_plot:.4g}")
+
+plt.xlabel("log10(alpha)")
+plt.ylabel("Coefficient")
+plt.title(f"LASSO-Cox Coefficient Paths (mRNA + Methylation, Best Fold = {best_fold})")
+plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+plt.tight_layout()
+plt.savefig("../results/figures/lasso_cox_multiomics_coefficient_paths.png", dpi=300)
+plt.show()
+
+
+# In[ ]:
+
+
+
+
