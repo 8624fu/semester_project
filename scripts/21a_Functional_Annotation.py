@@ -69,3 +69,8 @@ ann["role"] = [ROLE.get(g, "") for g in ann.index]
 ann = ann.reset_index().rename(columns={"index": "gene"})
 ann.to_csv(TABLES / "functional_annotation_top10.csv", index=False)
 ann
+
+
+uniprod_functional_table = pd.read_csv(TABLES / "uniprot_idmapping_top10_genes.tsv", sep="\t")
+
+uniprod_functional_table
