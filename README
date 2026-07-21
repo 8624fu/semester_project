@@ -50,6 +50,16 @@ Run this script once before executing the remaining R scripts.
 
 --------------------------------------------------------------------------------
 
+00b_install_python_packages.py:
+
+Purpose: Install all Python packages required by the project.
+
+1. Locates the project's requirements.txt file.
+2. Verifies that the requirements file exists before installation.
+3. Installs any missing Python packages listed in requirements.txt using pip within the active Python environment.
+
+--------------------------------------------------------------------------------
+
 01_Initial_Data_Download.R:
 
 Purpose: Download raw multi-omics data from TCGA-BRCA
@@ -216,7 +226,7 @@ prior to imputation.
 
 --------------------------------------------------------------------------------
 
-06_week1_eda.py:
+06b_week1_eda.py:
 
 Purpose: Perform initial exploratory data analysis of the exported PAM50 cohort
 
@@ -693,8 +703,6 @@ Outputs:
 
 --------------------------------------------------------------------------------
 
-
-19a_LASSO_Feature_Importance.ipynb
 19a_LASSO_Feature_Importance.py
 
 Feature-importance rankings for the two LASSO-Cox models (mRNA-only and multi-omics). 
@@ -716,7 +724,6 @@ Output:
 
 --------------------------------------------------------------------------------
 
-19b_NN_SHAP_Feature_Importance.ipynb
 19b_NN_SHAP_Feature_Importance.py
 
 
@@ -739,8 +746,6 @@ Output:
 
 --------------------------------------------------------------------------------
 
-
-20_Feature_Importance_Overview.ipynb
 20_Feature_Importance_Overview.py
 
 Overview of the four model rankings plus a simple cross-model comparison. 
@@ -762,8 +767,6 @@ Output:
 
 --------------------------------------------------------------------------------
 
-
-20b_Gene_Modality_Matrix.ipynb
 20b_Gene_Modality_Matrix.py
 
 As suggested by our supervisor:
@@ -787,32 +790,62 @@ Output:
 
 How to run:
 
-Run the R scripts in numerical order (01 -> 02 -> 03 -> 04 -> 05 -> 05b) from the
-repository root. Script 01 downloads the raw TCGA data (several GB) and only needs
-to be run once. Script 05b exports the CpG -> gene map used by the correlation
-analysis. The data/ folder is git-ignored, so the .RDS files remain local and are
-not pushed to the repository.
+Run all commands from the root of the repository unless otherwise stated.
 
-Next, run the exploratory Python scripts:
+1. Install the required R packages
 
-06_week1_eda.py ->
+Run the R package installation script once:
+
+00_install_packages_for_R.R
+
+This installs the required CRAN and Bioconductor packages and checks whether the GDC Data Transfer Tool is available.
+
+2. Install the required Python packages
+
+run the python installation script once:
+
+00b_install_python_packages.py
+
+This installs the packages listed in requirements.txt into the active Python environment.
+
+4. Download and prepare the TCGA data
+
+01_Initial_Data_Download.R ->
+02_Merge_Data.R ->
+03_Check_Missings.R ->
+04_Feature_Selection.R ->
+05_export_for_python.R ->
+05b_export_cpg_gene_map.R 
+
+5. Run the exploratory Python scripts:
+
+06_Methylation_EDA.py ->
+06b_week1_eda.py ->
 07_create_cv_folds.py ->
 08_Methylation_KNN_Imputation_For_Plotting.py ->
 09_CpG_Expression_Correlation.py ->
 09b_Subtype_Correlation_Comparison.py ->
 10_Survival_Curves.py
 
-LASSO-Cox survival models:
+7. Run LASSO-Cox survival models:
 
 11_LASSO_Cox_mRNA_Baseline.py ->
-12_LASSO_Cox_Multiomics.py
+12_LASSO_Cox_Multiomics.py ->
+13_LASSO_Cox_Model_Comparison.py
 
-Neural-network Cox survival models:
+8. Run neural-network Cox survival models:
 
 14_tune_mRNA.py ->
 15_tune_integrated_nn.py ->
 16_Run_best_Model_mRNA_Only.py ->
 17_Run_Best_Model_Integrated.py
+
+9. Generate feature-importance results
+
+19a_LASSO_Feature_Importance.py ->
+19b_NN_SHAP_Feature_Importance.py ->
+20_Feature_Importance_Overview.py -> 
+20b_Gene_Modality_Matrix.py ->
 
 Helper modules:
 
@@ -822,3 +855,8 @@ Helper modules:
 
 These helper modules are imported by the survival-model scripts and should not be
 run directly.
+
+
+All output tables and figures are written to:
+results/tables/ 
+results/figures/
