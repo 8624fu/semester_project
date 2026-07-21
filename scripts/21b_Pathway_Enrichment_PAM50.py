@@ -1,8 +1,11 @@
 from pathlib import Path
 from math import comb
 import pandas as pd
+import gseapy as gp
 
-TABLES = Path("../results/tables")
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+
+TABLES = PROJECT_ROOT / "results" / "tables"
 matrix = pd.read_csv(TABLES / "gene_modality_matrix.csv", index_col=0)
 
 UNIVERSE = list(matrix.index)                 # the 50 PAM50 genes = background
@@ -10,11 +13,6 @@ TOP_N = 10
 FOREGROUND = matrix.sort_values("combined", ascending=False).head(TOP_N).index.tolist()
 print(f"Universe: {len(UNIVERSE)} genes | foreground: {len(FOREGROUND)} genes")
 print("Foreground:", FOREGROUND)
-
-try:
-    import gseapy as gp
-except Exception as e:
-    raise SystemExit(f"gseapy not available - run 'pip install gseapy'. ({e})")
 
 LIBRARIES = ["KEGG_2021_Human", "Reactome_2022"]
 MIN_UNIVERSE = 3

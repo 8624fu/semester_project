@@ -216,7 +216,7 @@ def summarize_cv_results(cv):
         print("Test: not evaluated")
     
 def save_cv_results(cv, filename="nn_cox_mrna_cv_results.csv"):
-    out_dir = Path("../results/tables")
+    out_dir = PROJECT_ROOT / "results" / "tables"
     out_dir.mkdir(parents=True, exist_ok=True)
     cv.to_csv(out_dir / filename, index=False)
     print(f"Saved CV results to {out_dir / filename}")

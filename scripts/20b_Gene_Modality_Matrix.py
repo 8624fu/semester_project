@@ -5,8 +5,10 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-TABLES = Path("../results/tables")
-FIGURES = Path("../results/figures"); FIGURES.mkdir(parents=True, exist_ok=True)
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+
+TABLES = PROJECT_ROOT / "results" / "tables"
+FIGURES = PROJECT_ROOT / "results" / "figures"; FIGURES.mkdir(parents=True, exist_ok=True)
 
 MODELS = {
     "LASSO_mRNA":       "feature_importance_lasso_mrna.csv",
