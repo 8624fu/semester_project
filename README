@@ -1,9 +1,60 @@
+## Prerequisites
+
+- R (version 4.5 or later)
+- Python (version 3.11 or later)
+- Conda (recommended)
+- GDC Data Transfer Tool (`gdc-client`) (required only for Script 01)
+- Internet connection (required only for Script 01 to download TCGA data)
+- Approximately 15 GB of free disk space for the initial data download
+
+--------------------------------------------------------------------------------
+
+### Installing the GDC Data Transfer Tool (`gdc-client`)
+
+This project uses the official **GDC Data Transfer Tool (`gdc-client`)** to download TCGA molecular data. Compared with the default API downloader, the client is more reliable for large datasets because it supports automatic retries and download resumption.
+
+1. Download the appropriate version of `gdc-client` for your operating system from the official GDC website.
+2. Verify that the installation was successful by running:
+
+```bash
+gdc-client --version
+```
+
+On macOS, you may receive a security warning the first time you open the executable. If this occurs:
+
+1. Attempt to open `gdc-client` once.
+2. Open **System Settings → Privacy & Security**.
+3. Select **Open Anyway** for `gdc-client`.
+4. Confirm that you wish to run the application.
+
+`01_Initial_Data_Download.R` will automatically search for `gdc-client` in several common installation locations. If it is installed elsewhere, specify its location before running the script:
+
+```r
+Sys.setenv(GDC_CLIENT_PATH = "/full/path/to/gdc-client")
+```
+
+--------------------------------------------------------------------------------
+
+## 00_install_packages_for_R.R:
+
+**Purpose:** Install all required R packages for the project.
+
+This script:
+
+1. Installs any missing CRAN packages.
+2. Installs any missing Bioconductor packages.
+3. Verifies that all required packages are available before the analysis pipeline is run.
+4. Checks whether the GDC Data Transfer Tool is available on the system.
+
+Run this script once before executing the remaining R scripts.
+
+--------------------------------------------------------------------------------
+
 01_Initial_Data_Download.R:
 
-Purpose: Download raw multi-omics data from TCGA-BRCA
+**Purpose:** Download raw multi-omics data from TCGA-BRCA
 
-1. Installs and loads required Bioconductor packages (TCGAbiolinks, SummarizedExperiment, sesame)
-Queries and downloads:
+1. Downloads the following TCGA-BRCA datasets using TCGAbiolinks:
 - DNA methylation (Illumina Human Methylation 450K beta values)
 - RNA-seq gene expression (STAR - Counts workflow)
 - Clinical metadata from TCGA-BRCA
@@ -14,6 +65,8 @@ Queries and downloads:
 - meth_tcga_brca.rds
 - rna_tcga_brca.rds
 - clinical_brca.rds
+
+> **Note:** The initial download is approximately **12 GB** and may take several hours depending on internet speed and GDC server availability. The download only needs to be performed once.
 
 --------------------------------------------------------------------------------
 
