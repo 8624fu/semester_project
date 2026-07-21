@@ -16,3 +16,9 @@ data/processed/*
 # Python
 __pycache__/
 *.pyc
+
+# Temporary files
+gdc_manifest.txt
+gdc_client_configuration.dtt
+df.rds
+results.rds

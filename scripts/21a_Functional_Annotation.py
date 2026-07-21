@@ -3,8 +3,10 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-TABLES = Path("../results/tables")
-FIGURES = Path("../results/figures"); FIGURES.mkdir(parents=True, exist_ok=True)
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+
+TABLES = PROJECT_ROOT / "results" / "tables"
+FIGURES = PROJECT_ROOT / "results" / "figures"; FIGURES.mkdir(parents=True, exist_ok=True)
 
 matrix = pd.read_csv(TABLES / "gene_modality_matrix.csv", index_col=0)  
 corr = pd.read_csv(TABLES / "gene_methylation_expression_correlation_summary.csv").set_index("gene")
