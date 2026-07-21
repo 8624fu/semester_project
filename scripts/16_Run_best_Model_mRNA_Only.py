@@ -11,21 +11,27 @@ from NN_Cox_mRNA_Expression import run_cv
 OUT_DIR = PROJECT_ROOT / "results" / "tables"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
-BEST_CONFIG = {
-    "learning_rate": 0.001,       
-    "weight_decay": 0.001,          
-    "num_nodes": [16],               
-    "dropout": 0.6,                 
-    "batch_norm": False,
-    "patience": 10,
-    "batch_size": 32,
-    "evaluate_on_test": True
-}
+CONFIG_FILE = OUT_DIR / "nn_mRNA_Only_best_hyperparameters.json"
+
+def load_best_config():
+    """Load the hyperparameters selected by the tuning script."""
+    if not CONFIG_FILE.exists():
+        raise FileNotFoundError(
+            f"Best hyperparameter file not found: {CONFIG_FILE}\n"
+            "Run scripts/14_tune_mRNA.py before running this script."
+        )
+    with open(CONFIG_FILE, "r", encoding="utf-8") as file:
+        config = json.load(file)
+    config["evaluate_on_test"] = True
+    return config
 
 def summarize_cv(cv, config):
+    summary_config = config.copy()
+
+    summary_config["num_nodes"] = json.dumps(summary_config["num_nodes"])
+
     return pd.DataFrame([{
-        **config,
-        "num_nodes": json.dumps(config["num_nodes"]),
+        **summary_config,
         "mean_train_c_index": cv["train_c_index"].mean(),
         "sd_train_c_index": cv["train_c_index"].std(),
         "mean_val_c_index": cv["val_c_index"].mean(),
@@ -36,12 +42,14 @@ def summarize_cv(cv, config):
     }])
 
 def main():
+    best_config = load_best_config()
+
     print("Running final mRNA Only NN-Cox model with best configuration:")
-    print(BEST_CONFIG)
+    print(json.dumps(best_config, indent=2))
 
-    cv = run_cv(**BEST_CONFIG)
+    cv = run_cv(**best_config)
 
-    summary = summarize_cv(cv, BEST_CONFIG)
+    summary = summarize_cv(cv, best_config)
 
     cv.to_csv(
         OUT_DIR / "nn_mRNA_only_best_model_folds.csv",

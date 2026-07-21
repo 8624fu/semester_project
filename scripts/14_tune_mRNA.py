@@ -24,37 +24,10 @@ def summarize_cv(cv, config, config_id, stage):
         "mean_epochs_trained": cv["epochs_trained"].mean(),
     }
 
-# Choose the simplest model within 1 SD of the best validation C-index.
 def choose_best_config(summary):
-    best_row = summary.loc[summary["mean_val_c_index"].idxmax()]
-    cutoff = best_row["mean_val_c_index"] - best_row["sd_val_c_index"]
-
-    candidates = summary[summary["mean_val_c_index"] >= cutoff].copy()
-
-    candidates["model_size"] = candidates["num_nodes"].apply(
-        lambda x: sum(json.loads(x))
-    )
-
-    candidates["overfit_gap"] = (
-        candidates["mean_train_c_index"] - candidates["mean_val_c_index"]
-    )
-
-    candidates = candidates.sort_values(
-        by=[
-            "model_size",
-            "overfit_gap",
-            "sd_val_c_index",
-            "mean_val_c_index",
-        ],
-        ascending=[
-            True,
-            True,
-            True,
-            False,
-        ],
-    )
-
-    return candidates.iloc[0]
+    return summary.loc[
+        summary["mean_val_c_index"].idxmax()
+    ]
 
 def run_tuning(grid, param_names):
     summary_rows = []
@@ -132,8 +105,25 @@ folds.to_csv(
     index=False,
 )
 
+selected_config = {
+    "learning_rate": float(best_config["learning_rate"]),
+    "weight_decay": float(best_config["weight_decay"]),
+    "num_nodes": json.loads(best_config["num_nodes"]),
+    "dropout": float(best_config["dropout"]),
+    "batch_norm": bool(best_config["batch_norm"]),
+    "batch_size": int(best_config["batch_size"]),
+    "patience": int(best_config["patience"]),
+}
+
+with open(
+    OUT_DIR / "nn_mRNA_Only_best_hyperparameters.json",
+    "w",
+    encoding="utf-8",
+) as file:
+    json.dump(selected_config, file, indent=2)
+
 print("\nTop configs by validation C-index:")
 print(summary.head(10).to_string(index=False))
 
-print("\nSelected config using conservative 1-SD rule:")
+print("\nSelected config:")
 print(best_config)

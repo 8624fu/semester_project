@@ -1,0 +1,12 @@
+{
+  "learning_rate": 0.001,
+  "weight_decay": 0.03,
+  "num_nodes": [
+    8
+  ],
+  "dropout": 0.5,
+  "batch_norm": false,
+  "batch_size": 32,
+  "patience": 10,
+  "meth_variance_threshold": 0.0005
+}

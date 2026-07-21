@@ -57,7 +57,6 @@ print(cpg_missing_before["missing_fraction"].describe())
 # In[3]:
 
 
-# Find CpGs that are completely missing
 all_missing_cpgs = meth.columns[meth.isna().all()]
 
 print("All-missing CpGs:", len(all_missing_cpgs))
