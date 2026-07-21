@@ -6,17 +6,21 @@
 
 rm(list = ls())
 
-dir.create("results/tables",  recursive = TRUE, showWarnings = FALSE)
-dir.create("results/figures", recursive = TRUE, showWarnings = FALSE)
+library(here)
+
+here::i_am("scripts/09c_Differential_Methylation.R")
+
+dir.create(here("results", "tables"),  recursive = TRUE, showWarnings = FALSE)
+dir.create(here("results", "figures"), recursive = TRUE, showWarnings = FALSE)
 
 #load KNN-imputed beta matrix
-meth     <- read.csv("data/processed/meth_pam50_knn_imputed.csv",
+meth     <- read.csv(here("data", "processed", "meth_pam50_knn_imputed.csv"),
                      row.names = 1, check.names = FALSE)
-rna      <- read.csv("data/processed/rna_pam50.csv",
+rna      <- read.csv(here("data", "processed", "rna_pam50.csv"),
                      row.names = 1, check.names = FALSE)
-labels   <- read.csv("data/processed/labels_luminal_brca.csv",
+labels   <- read.csv(here("data", "processed", "labels_luminal_brca.csv"),
                      stringsAsFactors = FALSE)
-spearman <- read.csv("results/tables/cpg_expression_spearman.csv",
+spearman <- read.csv(here("results", "tables", "cpg_expression_spearman.csv"),
                      stringsAsFactors = FALSE)
 
 
@@ -71,7 +75,7 @@ res$adj_P       <- p.adjust(res$P, method = "BH")   # FDR across GENES
 res$significant <- res$adj_P < 0.05
 res <- res[order(res$adj_P, -abs(res$rho_difference)), ]
 
-write.csv(res, "results/tables/subtype_coupling_fisherz.csv", row.names = FALSE)
+write.csv(res, here("results", "tables", "subtype_coupling_fisherz.csv"), row.names = FALSE)
 cat(sprintf("Genes with significantly different coupling (adj.P<0.05): %d of %d\n",
             sum(res$significant), nrow(res)))
 

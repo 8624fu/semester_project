@@ -7,26 +7,26 @@
 
 rm(list = ls())
 
-if (!requireNamespace("limma", quietly = TRUE)) {
-  stop("Package 'limma' not installed. Install via BiocManager::install('limma').")
-}
 library(limma)
+library(here)
 
-dir.create("results/tables",  recursive = TRUE, showWarnings = FALSE)
-dir.create("results/figures", recursive = TRUE, showWarnings = FALSE)
+here::i_am("scripts/09c_Differential_Methylation.R")
+
+dir.create(here("results", "tables"),  recursive = TRUE, showWarnings = FALSE)
+dir.create(here("results", "figures"), recursive = TRUE, showWarnings = FALSE)
 
 # load the data
 # KNN-imputed beta matrix
 # descriptive eda no leakage this is descriptive EDA
 # with no train/test split, so global imputation cannot leak. 
 # Patients in rows, CpGs in columns.
-meth     <- read.csv("data/processed/meth_pam50_knn_imputed.csv",
+meth     <- read.csv(here("data", "processed", "meth_pam50_knn_imputed.csv"),
                      row.names = 1, check.names = FALSE)
-labels   <- read.csv("data/processed/labels_luminal_brca.csv",
+labels   <- read.csv(here("data", "processed", "labels_luminal_brca.csv"),
                      stringsAsFactors = FALSE)
-cpg_gene <- read.csv("data/processed/cpg_gene_map.csv",
+cpg_gene <- read.csv(here("data", "processed", "cpg_gene_map.csv"),
                      stringsAsFactors = FALSE)
-spearman <- read.csv("results/tables/cpg_expression_spearman.csv",
+spearman <- read.csv(here("results", "tables", "cpg_expression_spearman.csv"),
                      stringsAsFactors = FALSE)
 
 #define silencing CpG set from 09
@@ -81,7 +81,7 @@ DB_THRESHOLD    <- 0.1
 out$significant <- out$adj_P < 0.05 & abs(out$delta_beta) > DB_THRESHOLD
 out <- out[order(out$adj_P, -abs(out$delta_beta)), ]
 
-write.csv(out, "results/tables/differential_methylation_subtype.csv",
+write.csv(out, here("results", "tables", "differential_methylation_subtype.csv"),
           row.names = FALSE)
 cat(sprintf("Significant CpGs (adj.P<0.05 & |delta_beta|>%.1f): %d\n",
             DB_THRESHOLD, sum(out$significant)))
@@ -96,7 +96,7 @@ by_gene <- do.call(rbind, lapply(split(out, out$gene), function(g) data.frame(
   stringsAsFactors = FALSE
 )))
 by_gene <- by_gene[order(by_gene$min_adj_P), ]
-write.csv(by_gene, "results/tables/differential_methylation_by_gene.csv",
+write.csv(by_gene, here("results", "tables", "differential_methylation_by_gene.csv"),
           row.names = FALSE)
 
 cat("Saved differential_methylation_subtype.csv and differential_methylation_by_gene.csv\n")

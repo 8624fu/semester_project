@@ -53,7 +53,8 @@ bioconductor_packages <- c(
   "DESeq2",
   "org.Hs.eg.db",
   "minfi",
-  "IlluminaHumanMethylation450kanno.ilmn12.hg19"
+  "IlluminaHumanMethylation450kanno.ilmn12.hg19",
+  "limma"
 )
 
 missing_bioconductor <- bioconductor_packages[
