@@ -7,7 +7,9 @@
 # CRAN packages ---------------------------------------------------------------
 
 cran_packages <- c(
-  "here"
+  "here",
+  "glue",
+  "dplyr"
 )
 
 missing_cran <- cran_packages[
@@ -47,7 +49,11 @@ bioconductor_packages <- c(
   "TCGAbiolinks",
   "SummarizedExperiment",
   "sesameData",
-  "sesame"
+  "sesame",
+  "DESeq2",
+  "org.Hs.eg.db",
+  "minfi",
+  "IlluminaHumanMethylation450kanno.ilmn12.hg19"
 )
 
 missing_bioconductor <- bioconductor_packages[

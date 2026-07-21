@@ -4,12 +4,15 @@
 rm(list = ls())
 
 library(dplyr)
+library(here)
+
+here::i_am("scripts/05_export_for_python.R")
 
 # Create output folder 
 dir.create("data/processed", recursive = TRUE, showWarnings = FALSE)
 
 # Load pam50 features
-pam50_features <- readRDS("data/multiomics/pam50_features_brca.rds")
+pam50_features <- readRDS(here("data", "multiomics", "pam50_features_brca.rds"))
 
 # Pull out each component
 rna_pam50 <- pam50_features$rna
@@ -74,25 +77,25 @@ stopifnot(identical(rna_python$patient, clinical_python$patient))
 # wrote csv files
 write.csv(
   rna_python,
-  "data/processed/rna_pam50.csv",
+  here("data", "processed", "rna_pam50.csv"),
   row.names = FALSE
 )
 
 write.csv(
   meth_python,
-  "data/processed/meth_pam50.csv",
+  here("data", "processed", "meth_pam50.csv"),
   row.names = FALSE
 )
 
 write.csv(
   clinical_python,
-  "data/processed/clinical_luminal_brca.csv",
+  here("data", "processed", "clinical_luminal_brca.csv"),
   row.names = FALSE
 )
 
 write.csv(
   labels_python,
-  "data/processed/labels_luminal_brca.csv",
+  here("data", "processed", "labels_luminal_brca.csv"),
   row.names = FALSE
 )
 

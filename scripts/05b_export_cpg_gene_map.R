@@ -7,6 +7,9 @@ rm(list = ls())
 
 library(IlluminaHumanMethylation450kanno.ilmn12.hg19)
 library(minfi)
+library(here)
+
+here::i_am("scripts/05b_export_cpg_gene_map.R")
 
 # PAM50 gene set (current HGNC symbols), identical to stage 04.
 pam50_genes <- c(
@@ -28,7 +31,7 @@ promoter_regions <- c("TSS1500", "TSS200", "1stExon")
 
 # Selected promoter CpGs are exactly the rows of the methylation matrix in the
 # stage-04 feature object; use them so the map matches the analysis set.
-pam50_features <- readRDS("../data/multiomics/pam50_features_brca.rds")
+pam50_features <- readRDS(here("data", "multiomics", "pam50_features_brca.rds"))
 selected_cpgs <- rownames(pam50_features$meth)
 
 ann <- getAnnotation(IlluminaHumanMethylation450kanno.ilmn12.hg19)
@@ -54,8 +57,8 @@ map_df <- do.call(rbind, lapply(names(pairs), function(cpg) {
   data.frame(cpg = cpg, gene = pairs[[cpg]], stringsAsFactors = FALSE)
 }))
 
-dir.create("..data/processed", recursive = TRUE, showWarnings = FALSE)
-write.csv(map_df, "../data/processed/cpg_gene_map.csv", row.names = FALSE)
+dir.create(here("data", "processed"), recursive = TRUE, showWarnings = FALSE)
+write.csv(map_df, here("data", "processed", "cpg_gene_map.csv"), row.names = FALSE)
 
 cat("CpGs mapped:", length(pairs), "| CpG-gene pairs:", nrow(map_df),
     "| genes covered:", length(unique(map_df$gene)), "\n")

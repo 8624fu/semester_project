@@ -13,24 +13,19 @@ rm(list = ls())
 
 # Install / Load Packages ------------------------------------------------------
 
-if (!require("BiocManager"))
-  install.packages("BiocManager")
-
-BiocManager::install("DESeq2")
-BiocManager::install("org.Hs.eg.db")
-BiocManager::install("minfi")
-BiocManager::install("IlluminaHumanMethylation450kanno.ilmn12.hg19")
-
 library(SummarizedExperiment)   # base container class
 library(DESeq2)     # for RNA-Normalization
 library(org.Hs.eg.db)   # for annotation: maps Ensembl IDs <-> gene symbols
 library(minfi)      # for Methylation-Array-Analysis
 library(IlluminaHumanMethylation450kanno.ilmn12.hg19)   # 450K probe annotation (hg19)
+library(here)
+
+here::i_am("scripts/04_Feature_Selection.R")
 
 
 # Load Multiomics Data ---------------------------------------------------------
 # multiomics: list of 4 components, all aligned to the same 563 patients (422 LumA / 141 LumB).
-multiomics <- readRDS("../data/multiomics/multiomics_luminal_brca.rds")
+multiomics <- readRDS(here("data", "multiomics", "multiomics_luminal_brca.rds"))
 # all in identical sample order
 beta            <- multiomics$beta   # CpG x samples, raw beta values
 rna_mat         <- multiomics$rna    # gene x samples, raw STAR counts
@@ -129,7 +124,7 @@ cpg_annotation_summary <- ann450k[promoter_probes, c(
 
 write.csv(
   cpg_annotation_summary,
-  "../data/multiomics/cpg_annotation_summary_pam50_promoters.csv",
+  here("data", "multiomics", "cpg_annotation_summary_pam50_promoters.csv"),
   row.names = FALSE
 )
 
@@ -158,4 +153,4 @@ pam50_features <- list(
   y        = y  # factor: LumA vs LumB
 )
 
-saveRDS(pam50_features, "../data/multiomics/pam50_features_brca.rds")
+saveRDS(pam50_features, here("data", "multiomics", "pam50_features_brca.rds"))
