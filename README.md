@@ -367,7 +367,7 @@ Generates:
 * methylation_expression_correlation_by_gene.png (per-gene mean-rho bar chart)
 * top_silencing_gene_scatter.png (methylation vs expression for the top CpG)
 
-Note: uses the full-cohort imputed matrix because this is descriptive analysis, not cross-validated model evaluation, so no leakage concern applies.
+> **Note:** uses the full-cohort imputed matrix because this is descriptive analysis, not cross-validated model evaluation, so no leakage concern applies.
 
 --------------------------------------------------------------------------------
 
@@ -389,7 +389,7 @@ Generates:
 * correlation_by_subtype.csv (per-gene rho in LumA, rho in LumB, difference)
 * methylation_expression_correlation_LumA_vs_LumB.png (per-gene LumA vs LumB scatter; points off the y = x line indicate subtype-specific regulation)
 
-Note: LumB has far fewer patients than LumA, so its per-gene correlations are noisier; the comparison is descriptive (no formal test of correlation differences).
+> **Note:** LumB has far fewer patients than LumA, so its per-gene correlations are noisier; the comparison is descriptive (no formal test of correlation differences).
 
 --------------------------------------------------------------------------------
 
