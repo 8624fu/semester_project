@@ -12,7 +12,7 @@ echo "Running Python setup..."
 python scripts/00b_install_python_packages.py
 
 echo "Running R data preparation..."
-# Rscript scripts/01_Initial_Data_Download.R
+Rscript scripts/01_Initial_Data_Download.R
 Rscript scripts/02_Merge_Data.R
 Rscript scripts/03_Check_Missings.R
 Rscript scripts/04_Feature_Selection.R
