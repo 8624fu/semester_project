@@ -685,3 +685,43 @@ Input:
 Output:
 
 * gene_modality_matrix.csv + stacked top-15 figure.
+
+---------------------------------------------------------------------------------
+
+## 21a_Functional_Annotation.py 
+
+Functional annotation of the top-10 genes from the combined importance ranking (20b). Each gene is labelled with its dominant modality, its PAM50 functional group, a one-line role, and the Task-1 promoter methylation-expression correlation (mean_rho and min_rho, the strongest silencing CpG), so that genuine methylation-silenced genes can be distinguished from expression-driven ones. The functional-group and role labels were AI-drafted and then verified against UniProtKB/Gene Ontology.
+
+Input: 
+
+* gene_modality_matrix.csv (from 20b), gene_methylation_expression_correlation_summary.csv (Task 1).
+
+Output: 
+
+* functional_annotation_top10.csv + functional_annotation_top10.png (top genes coloured by functional group).
+
+
+---------------------------------------------------------------------------------
+
+## 21b_Pathway_Enrichment_PAM50.py
+
+Over-representation (pathway enrichment) analysis of the top-10 genes tested against a PAM50-gene background. Using the 50 PAM50 genes as the universe—rather than the whole genomewould otherwise. KEGG and Reactome gene sets are restricted to the 50 genes; every pathway with at least three PAM50 members is tested with a hypergeometric over-representation test and corrected with Benjamini-Hochberg FDR. 
+
+Input: 
+
+* gene_modality_matrix.csv (top 10 genes as foreground, all 50 PAM50 genes as background)
+
+Output: 
+
+* pathway_enrichment_pam50.csv 
+
+---------------------------------------------------------------------------------
+## 22_Feedback_Baseline_Models.py
+
+Post-presentation analyses, all on the same shared 5-fold CV and C-index metric: (1) a clinical-only Cox model from subtype and tumour stage, (2) an elastic-net Cox model (l1_ratio = 0.5) on the mRNA and multi-omics features, and (3) a subtype-only baseline (Luminal A vs. B) with a log-rank test. It ends with an extended boxplot placing these baselines next to the four original models. 
+
+Input: 
+
+* survival_luminal_clean.csv, stage_luminal_brca.csv, cv_fold_assignments.csv, rna_pam50.csv, meth_pam50.csv (data/processed); the four original per-fold result files (lasso_cox_cv_results.csv, lasso_cox_multiomics_cv_results.csv, nn_mRNA_only_best_model_folds.csv, nn_integrated_best_model_folds.csv).
+
+* Output: feedback_baseline_models.csv + all_models_cindex_boxplot_extended.png.
