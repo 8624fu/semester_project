@@ -41,11 +41,11 @@ To reproduce the complete analysis, run:
 
 ```bash
 ./run_pipeline.sh
-
+```
 All output tables and figures are written to:
 results/tables/ 
 results/figures/
-```
+
 --------------------------------------------------------------------------------
 
 ## run_pipeline.sh:
