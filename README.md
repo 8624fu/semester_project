@@ -393,6 +393,41 @@ Generates:
 
 --------------------------------------------------------------------------------
 
+## 09c_Differential_Methylation.R:
+
+**Purpose:** Test whether the silenced PAM50 CpGs are differentially methylated between Luminal A and Luminal B.
+
+Loads:
+
+* meth_pam50_knn_imputed.csv
+* labels_luminal_brca.csv
+* cpg_gene_map.csv
+* cpg_expression_spearman.csv (from stage 09)
+
+Takes the silenced CpGs (negative methylation-expression correlation, q < 0.05), converts beta to M-values and compares LumB vs LumA with a limma moderated t-test. A CpG counts as significant if adj.P < 0.05 and the mean beta difference is above 0.1. Results are also summarised per gene.
+
+Output:
+
+* differential_methylation_subtype.csv (per CpG)
+* differential_methylation_by_gene.csv (per gene)
+
+## 09d_Subtype_Coupling_FisherZ.R:
+
+**Purpose:** Statistical test for the descriptive comparison in stage 09b: does the methylation-expression coupling differ between Luminal A and Luminal B?
+
+Loads:
+
+* meth_pam50_knn_imputed.csv
+* rna_pam50.csv
+* labels_luminal_brca.csv
+* cpg_expression_spearman.csv (from stage 09)
+
+For each PAM50 gene the silenced CpGs are averaged (M-values) and correlated with expression separately in LumA and LumB. The two Spearman correlations are compared with a Fisher z-test and FDR-corrected across genes.
+
+Output:
+
+* subtype_coupling_fisherz.csv (per gene: rho in LumA, rho in LumB, difference, z, p, adj.P)
+
 ## 10_Survival_Curves.py:
 
 **Purpose:** Kaplan-Meier overall-survival visualizations (Task 1).
@@ -658,7 +693,7 @@ Output:
 
 --------------------------------------------------------------------------------
 
-## 20_Feature_Importance_Overview.py
+## 20a_Feature_Importance_Overview.py
 
 **Purpose:** Overview of the four model rankings plus a simple cross-model comparison. Shows each model's top features as a table and bar chart (for the LASSO models also the selection frequency) and a consistency counter: in how many of the 4 models a gene appears in the top K (stacked bar, colored by model).No score merging, since the raw values are not comparable across models.
 
@@ -716,7 +751,7 @@ Output:
 * pathway_enrichment_pam50.csv 
 
 ---------------------------------------------------------------------------------
-## 22_Feedback_Baseline_Models.py
+## 22_Post_Feedback_Models.py
 
 Post-presentation analyses, all on the same shared 5-fold CV and C-index metric: (1) a clinical-only Cox model from subtype and tumour stage, (2) an elastic-net Cox model (l1_ratio = 0.5) on the mRNA and multi-omics features, and (3) a subtype-only baseline (Luminal A vs. B) with a log-rank test. It ends with an extended boxplot placing these baselines next to the four original models. 
 
