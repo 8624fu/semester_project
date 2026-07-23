@@ -175,5 +175,11 @@ multiomics <- list(
   y = y
 )
 
+dir.create(
+  here("data", "multiomics"),
+  recursive = TRUE,
+  showWarnings = FALSE
+)
+
 saveRDS(multiomics, here("data", "multiomics", "multiomics_luminal_brca.rds"))
 

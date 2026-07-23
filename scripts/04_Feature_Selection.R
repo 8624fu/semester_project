@@ -124,7 +124,7 @@ cpg_annotation_summary <- ann450k[promoter_probes, c(
 
 write.csv(
   cpg_annotation_summary,
-  here("data", "multiomics", "cpg_annotation_summary_pam50_promoters.csv"),
+  here("data", "processed", "cpg_annotation_summary_pam50_promoters.csv"),
   row.names = FALSE
 )
 
