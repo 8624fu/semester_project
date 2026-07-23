@@ -11,20 +11,22 @@ from sksurv.linear_model import CoxPHSurvivalAnalysis, CoxnetSurvivalAnalysis
 from sksurv.metrics import concordance_index_censored
 from lifelines.statistics import logrank_test
 
-sys.path.append("../scripts")
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+
+sys.path.append(str(PROJECT_ROOT / "scripts"))
 from KNN_Imputation_Helper_Function import fit_transform_train_test_methylation
 
 warnings.simplefilter("ignore")
-TABLES = Path("../results/tables"); TABLES.mkdir(parents=True, exist_ok=True)
+TABLES = PROJECT_ROOT / "results" / "tables"; TABLES.mkdir(parents=True, exist_ok=True)
 RANDOM_STATE = 42
 
 # --- load ---
-surv  = pd.read_csv("../data/processed/survival_luminal_clean.csv").set_index("patient")
-stage = pd.read_csv("../data/processed/stage_luminal_brca.csv").set_index("patient")
-folds = pd.read_csv("../data/processed/cv_fold_assignments.csv").set_index("patient")
-rna   = pd.read_csv("../data/processed/rna_pam50.csv").set_index("patient")
-meth  = pd.read_csv("../data/processed/meth_pam50.csv").set_index("patient")
-anno  = pd.read_csv("../data/processed/cpg_gene_map.csv")
+surv  = pd.read_csv(PROJECT_ROOT / "data" / "processed" / "survival_luminal_clean.csv").set_index("patient")
+stage = pd.read_csv(PROJECT_ROOT / "data" / "processed" / "stage_luminal_brca.csv").set_index("patient")
+folds = pd.read_csv(PROJECT_ROOT / "data" / "processed" / "cv_fold_assignments.csv").set_index("patient")
+rna   = pd.read_csv(PROJECT_ROOT / "data" / "processed" / "rna_pam50.csv").set_index("patient")
+meth  = pd.read_csv(PROJECT_ROOT / "data" / "processed" / "meth_pam50.csv").set_index("patient")
+anno  = pd.read_csv(PROJECT_ROOT / "data" / "processed" / "cpg_gene_map.csv")
 cpg_to_gene = dict(zip(anno["cpg"], anno["gene"]))
 
 surv = surv[surv["time"].notna() & (surv["time"] > 0)]
@@ -143,7 +145,7 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Patch
 from matplotlib.lines import Line2D
 
-FIGURES = Path("../results/figures"); FIGURES.mkdir(parents=True, exist_ok=True)
+FIGURES = PROJECT_ROOT / "results" / "figures"; FIGURES.mkdir(parents=True, exist_ok=True)
 
 # original 4 models: per-fold test C-index from the first model comparison
 orig_files = {
@@ -193,4 +195,4 @@ ax.legend(handles=[Patch(facecolor="#DD8452", alpha=0.5, label="post-feedback mo
 ax.spines[["top", "right"]].set_visible(False)
 plt.tight_layout()
 plt.savefig(FIGURES / "all_models_cindex_boxplot_extended.png", dpi=300)
-plt.show()
+#plt.show()

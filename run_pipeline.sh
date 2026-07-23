@@ -25,6 +25,7 @@ python scripts/06_Methylation_EDA.py
 python scripts/06b_week1_eda.py
 python scripts/07_create_cv_folds.py
 python scripts/08_methylation_knn_imputation_For_Plotting.py
+python scripts/08b_EDA_Extension.py
 python scripts/09_CpG_Expression_Correlation.py
 python scripts/09b_Subtype_Correlation_Comparison.py
 Rscript scripts/09c_Differential_Methylation.R
@@ -48,5 +49,6 @@ python scripts/20a_Feature_Importance_Overview.py
 python scripts/20b_Gene_Modality_Matrix.py
 python scripts/21a_Functional_Annotation.py
 python scripts/21b_Pathway_Enrichment_PAM50.py
+python scripts/22_Post_Feedback_Models.py
 
 echo "Pipeline completed successfully."

@@ -1,0 +1,5 @@
+model,mean_c_index,sd
+Subtype only (LumA/LumB),0.577,0.055
+Clinical (subtype + stage),0.605,0.095
+Elastic net - mRNA,0.59,0.079
+Elastic net - multi-omics,0.553,0.105

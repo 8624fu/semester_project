@@ -72,7 +72,33 @@ clinical_python <- clinical %>%
     days_to_last_follow_up
   )
 
+# Create simplified pathologic stage file for Python analyses
+stage_python <- clinical %>%
+  dplyr::transmute(
+    patient,
+    ajcc_pathologic_stage,
+    stage_grouped = dplyr::case_when(
+      ajcc_pathologic_stage %in% c(
+        "Stage I",
+        "Stage IA",
+        "Stage IB"
+      ) ~ "I",
+      ajcc_pathologic_stage %in% c(
+        "Stage II",
+        "Stage IIA",
+        "Stage IIB",
+        "Stage III",
+        "Stage IIIA",
+        "Stage IIIB",
+        "Stage IIIC"
+      ) ~ "II",
+      ajcc_pathologic_stage == "Stage IV" ~ "IV",
+      TRUE ~ "Unknown"
+    )
+  )
+
 stopifnot(identical(rna_python$patient, clinical_python$patient))
+stopifnot(identical(rna_python$patient, stage_python$patient))
 
 # wrote csv files
 write.csv(
@@ -96,6 +122,12 @@ write.csv(
 write.csv(
   labels_python,
   here("data", "processed", "labels_luminal_brca.csv"),
+  row.names = FALSE
+)
+
+write.csv(
+  stage_python,
+  here("data", "processed", "stage_luminal_brca.csv"),
   row.names = FALSE
 )
 

@@ -1,0 +1,5 @@
+model,LumA logrank p,LumB logrank p
+mRNA-only LASSO Cox,0.5235,0.1888
+Multi-omics LASSO Cox,0.5978,0.6615
+mRNA-only Neural Network,0.0075,0.7574
+Multi-omics Neural Network,0.2195,0.4961
