@@ -11,7 +11,9 @@
 
 ## Installing the GDC Data Transfer Tool (gdc-client)
 
-This project uses the official GDC Data Transfer Tool (`gdc-client`) to download TCGA molecular data. Compared with the default API downloader, the client is more reliable for large datasets because it supports automatic retries and download resumption.
+This project uses the official GDC Data Transfer Tool (`gdc-client`) to download TCGA molecular data. Compared with the default API downloader, the client is more reliable for large datasets because it supports automatic retries and download resumption. 
+
+>**Note:** Downloading data may take several hours due to large size (12GB) 
 
 1. Download the appropriate version of gdc-client for your operating system from the official GDC website.
 2. Verify that the installation was successful by running:
