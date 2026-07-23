@@ -565,6 +565,122 @@ if km_results:
 
     print(risk_table)
 
+
+# ── risk score file paths (used for distribution + subtype KM plots) ──────────
+km_files = {
+    "mRNA-only LASSO Cox":       PROJECT_ROOT / "results" / "tables" / "lasso_cox_mrna_risk_scores.csv",
+    "Multi-omics LASSO Cox":     PROJECT_ROOT / "results" / "tables" / "lasso_cox_multiomics_risk_scores.csv",
+    "mRNA-only Neural Network":  PROJECT_ROOT / "results" / "tables" / "nn_mrna_only_risk_scores.csv",
+    "Multi-omics Neural Network":PROJECT_ROOT / "results" / "tables" / "nn_integrated_risk_scores.csv",
+}
+
+# ── risk score distributions ──────────────────────────────────────────────────
+fig, axes = plt.subplots(2, 2, figsize=(12, 8))
+axes = axes.flatten()
+
+for ax, (model_name, fpath) in zip(axes, km_files.items()):
+    if not Path(fpath).exists():
+        ax.set_visible(False)
+        continue
+    scores = pd.read_csv(fpath)
+    scores = scores.drop_duplicates(subset="patient", keep="last").set_index("patient")
+    common = scores.index.intersection(surv.index)
+    risk = scores.loc[common, "risk_score"]
+    median = risk.median()
+    short_name = model_name.replace(" Cox", "").replace(" Neural Network", " NN")
+    ax.hist(risk, bins=40, color=model_colors[short_name], edgecolor="none", density=True)
+    ax.axvline(median, color="black", linestyle="--", linewidth=1.5,
+               label=f"median = {median:.3f}")
+    ax.set_title(model_name, fontsize=11)
+    ax.set_xlabel("Risk score")
+    ax.set_ylabel("Density")
+    ax.legend(fontsize=9)
+    ax.spines[["top", "right"]].set_visible(False)
+
+fig.suptitle("Risk score distributions", fontsize=12)
+plt.tight_layout()
+plt.savefig(PROJECT_ROOT / "results" / "figures" / "risk_score_distributions.png", dpi=300)
+#plt.show()
+
+# ── KM curves: subtype x risk group ──────────────────────────────────────────
+group_colors = {
+    "LumA — Low risk":  "#82d3b9",
+    "LumA — High risk": "#176c62",
+    "LumB — Low risk":  "#f4a582",
+    "LumB — High risk": "#c0392b",
+}
+
+subtype_logrank_results = []
+fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+axes = axes.flatten()
+
+for ax, (model_name, fpath) in zip(axes, km_files.items()):
+    if not Path(fpath).exists():
+        ax.set_visible(False)
+        continue
+    scores = pd.read_csv(fpath)
+    scores = scores.drop_duplicates(subset="patient", keep="last").set_index("patient")
+    common = scores.index.intersection(surv.index)
+    d = surv.loc[common].copy()
+    d["risk_score"] = scores.loc[common, "risk_score"]
+    d["time_years"] = d["time"] / 365.25
+    d["risk_group"] = np.where(d["risk_score"] >= d["risk_score"].median(),
+                               "High risk", "Low risk")
+    d["combined_group"] = d["BRCA_Subtype_PAM50"] + " — " + d["risk_group"]
+
+    kmf = KaplanMeierFitter()
+    for group in ["LumA — Low risk", "LumA — High risk",
+                  "LumB — Low risk", "LumB — High risk"]:
+        sub = d[d["combined_group"] == group]
+        if len(sub) == 0:
+            continue
+        kmf.fit(sub["time_years"], sub["event"], label=f"{group} (n={len(sub)})")
+        kmf.plot_survival_function(ax=ax, ci_show=False, color=group_colors[group])
+
+    luma = d[d["BRCA_Subtype_PAM50"] == "LumA"]
+    lumb = d[d["BRCA_Subtype_PAM50"] == "LumB"]
+
+    if luma["risk_group"].nunique() == 2:
+        lr_luma = logrank_test(
+            luma.loc[luma["risk_group"] == "Low risk",  "time_years"],
+            luma.loc[luma["risk_group"] == "High risk", "time_years"],
+            event_observed_A=luma.loc[luma["risk_group"] == "Low risk",  "event"],
+            event_observed_B=luma.loc[luma["risk_group"] == "High risk", "event"]
+        )
+        lr_lumb = logrank_test(
+            lumb.loc[lumb["risk_group"] == "Low risk",  "time_years"],
+            lumb.loc[lumb["risk_group"] == "High risk", "time_years"],
+            event_observed_A=lumb.loc[lumb["risk_group"] == "Low risk",  "event"],
+            event_observed_B=lumb.loc[lumb["risk_group"] == "High risk", "event"]
+        )
+        subtype_logrank_results.append({
+            "model": model_name,
+            "LumA logrank p": round(lr_luma.p_value, 4),
+            "LumB logrank p": round(lr_lumb.p_value, 4)
+        })
+        ax.set_title(
+            f"{model_name}\nLumA p={lr_luma.p_value:.3g} | LumB p={lr_lumb.p_value:.3g}",
+            fontsize=10)
+    else:
+        ax.set_title(model_name, fontsize=10)
+
+    ax.set_xlabel("Overall survival (years)")
+    ax.set_ylabel("Survival probability")
+    ax.set_ylim(0, 1.05)
+    ax.legend(fontsize=8, loc="lower left")
+    ax.spines[["top", "right"]].set_visible(False)
+
+fig.suptitle("KM curves — PAM50 subtype x predicted risk group"
+             "Does the model stratify survival beyond subtype alone?", fontsize=12)
+plt.tight_layout()
+plt.savefig(PROJECT_ROOT / "results" / "figures" / "km_subtype_x_risk_group.png", dpi=300)
+#plt.show()
+
+if subtype_logrank_results:
+    lr_df = pd.DataFrame(subtype_logrank_results)
+    lr_df.to_csv(PROJECT_ROOT / "results" / "tables" / "km_subtype_x_risk_logrank.csv", index=False)
+    print(lr_df.to_string(index=False))
+
 # pull everything together into the final comparison table
 report_table = summary.copy()
 report_table.columns = ["Model", "Mean C-index", "SD", "Min", "Max"]
