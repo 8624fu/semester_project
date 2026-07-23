@@ -9,7 +9,7 @@ echo "Running R setup..."
 Rscript scripts/00_install_packages_for_R.R
 
 echo "Running R data preparation..."
-# Rscript scripts/01_Initial_Data_Download.R
+Rscript scripts/01_Initial_Data_Download.R
 Rscript scripts/02_Merge_Data.R
 Rscript scripts/03_Check_Missings.R
 Rscript scripts/04_Feature_Selection.R
