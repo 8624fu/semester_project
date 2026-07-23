@@ -374,30 +374,7 @@ This helper prevents data leakage during Week 2 and Week 3 survival-model evalua
 
 --------------------------------------------------------------------------------
 
-## 09_CpG_Expression_Correlation.py:
-
-**Purpose:** Quantify the relationship between promoter methylation and gene expression for each PAM50 gene (Task 1).
-
-Loads:
-
-* meth_pam50_knn_imputed.csv (full-cohort imputed methylation, exploratory)
-* rna_pam50.csv
-* cpg_gene_map.csv
-
-For every promoter CpG, computes the Spearman correlation between its imputed beta value and the matched gene's log2 expression across patients, with Benjamini-Hochberg FDR correction. Aggregates per gene (mean and most-negative correlation) and identifies the gene with the strongest silencing signal (most negative correlation), which stage 10 reuses to define methylation strata.
-
-Generates:
-
-* cpg_expression_spearman.csv (per-CpG correlations and q-values)
-* gene_methylation_expression_correlation_summary.csv (per-gene summary)
-* methylation_expression_correlation_by_gene.png (per-gene mean-rho bar chart)
-* top_silencing_gene_scatter.png (methylation vs expression for the top CpG)
-
-> **Note:** uses the full-cohort imputed matrix because this is descriptive analysis, not cross-validated model evaluation, so no leakage concern applies.
-
---------------------------------------------------------------------------------
-
-## 09a_EDA_Extension.py
+## 08b_EDA_Extension.py
 
 **Purpose:** Extended exploratory data analysis covering batch effect checks, methylation feature distributions, and subtype signal in both RNA and methylation data.
 
@@ -421,6 +398,29 @@ Generates:
 * meth_pca_by_subtype.png
 
 > **Note:** Uses the full-cohort KNN-imputed methylation dataset.
+
+--------------------------------------------------------------------------------
+
+## 09_CpG_Expression_Correlation.py:
+
+**Purpose:** Quantify the relationship between promoter methylation and gene expression for each PAM50 gene (Task 1).
+
+Loads:
+
+* meth_pam50_knn_imputed.csv (full-cohort imputed methylation, exploratory)
+* rna_pam50.csv
+* cpg_gene_map.csv
+
+For every promoter CpG, computes the Spearman correlation between its imputed beta value and the matched gene's log2 expression across patients, with Benjamini-Hochberg FDR correction. Aggregates per gene (mean and most-negative correlation) and identifies the gene with the strongest silencing signal (most negative correlation), which stage 10 reuses to define methylation strata.
+
+Generates:
+
+* cpg_expression_spearman.csv (per-CpG correlations and q-values)
+* gene_methylation_expression_correlation_summary.csv (per-gene summary)
+* methylation_expression_correlation_by_gene.png (per-gene mean-rho bar chart)
+* top_silencing_gene_scatter.png (methylation vs expression for the top CpG)
+
+> **Note:** uses the full-cohort imputed matrix because this is descriptive analysis, not cross-validated model evaluation, so no leakage concern applies.
 
 --------------------------------------------------------------------------------
 
